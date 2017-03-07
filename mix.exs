@@ -3,7 +3,8 @@ defmodule StreamPerlin.Mixfile do
 
   @version  "0.1.0"
   @deps [
-    { :quixir, ">= 0.0.0", only: [ :test ] }
+    { :quixir, ">= 0.0.0", only: :test },
+    { :ex_doc, ">= 0.0.0", only: :dev  },    
   ]
 
   @description """
