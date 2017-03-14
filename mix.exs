@@ -1,7 +1,7 @@
 defmodule StreamPerlin.Mixfile do
   use Mix.Project
 
-  @version  "0.1.0"
+  @version  "0.1.1"
   @deps [
     { :quixir, ">= 0.0.0", only: :test },
     { :ex_doc, ">= 0.0.0", only: :dev  },    

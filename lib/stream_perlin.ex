@@ -3,6 +3,31 @@ defmodule StreamPerlin do
   @moduledoc """
   Generate a potentially infinite stream of floats betyween -1 and 1 which
   vary smoothly using a 1d Perlin algorithm.
+
+  The low-level API is
+
+      sp = StreamPerlin.initialize(period)
+
+      {val, sp} = StreamPerlin.next(sp)
+      {val, sp} = StreamPerlin.next(sp)
+         :             :
+      {val, sp} = StreamPerlin.next(sp)
+
+  Alternatively, you can generate a stream of values using
+
+      StreamPerlin.generate(period)
+
+  The _period_ is a positive integer. It determines the number of
+  values that are interpolated between new random points. The
+  interpolation is eased using a quintic with zero first and second
+  derivatives at 0 and 1, ensuring the curve is continuous and smooth
+  as it moves between random values.
+
+  Good values of `period` depend on how jagged you want your data, and
+  how many samples you typically take. Values between 5 and 20 seem
+  like a good starting point.
+
+  If you need more complex data, you can apply Perlin's _octaves_ technique.
   """
   
   # `g1` and `g2` are the gradients at the start and end of the
@@ -24,39 +49,37 @@ defmodule StreamPerlin do
 
       StreamPerlin.generate(n)
 
-  generates a stream of floats. `n` is the _frequency_, a positive integer.
-  It determines the number of values that are interpolated between new 
-  random points. The interpolation is eased using a quintic with zero first and 
-  second derivatives at 0 and 1, ensuring the curve is continuous and smooth
-  as it moves between random values.
+  generates a stream of floats. See the module doc for StreamPerlin for details.
 
-  Good values of `n` depend on how jagged you want your data, and how many samples
-  you typically take. Values between 5 and 20 seem like a good starting
-  point.
-
-  If you need more complex data, you can apply Perlin's _octaves_ technique.
   """
   def generate(frequency) when is_integer(frequency) and frequency >= 1 do
-    state = %__MODULE__{
+    initialize(frequency)
+    |> Stream.unfold(&next/1)
+  end
+
+  @doc """
+  If you want an external iterator, then use
+
+      sp = StreamPerlin.initialize(n)
+
+  then
+
+      { next_val, new_sp } = StreamPerlin.next(sp)
+
+  """
+
+  def initialize(frequency) when is_integer(frequency) and frequency >= 1 do
+    %__MODULE__{
+      g1: random_gradient(),
       g2: random_gradient(),
       frequency: frequency,
     }
-    
-    Stream.unfold(state, &generate_perlin/1)
-  end
-
-  ############################################################
-
-  # For 1D curves, the gradient is just a value between -1 and 1.
-  
-  defp random_gradient() do
-    :rand.uniform() * 2 - 1
   end
 
   # get here when we have to start a new unit. We shift the
   # gradients down to ensure a continuation of the
   # tangent
-  defp generate_perlin(%{ values_in_unit: [], g2: g2, frequency: frequency }) do
+  def next(%{ values_in_unit: [], g2: g2, frequency: frequency }) do
     new_g2 = random_gradient()
     state = %__MODULE__{
       g1: g2,
@@ -64,14 +87,23 @@ defmodule StreamPerlin do
       frequency: frequency,
       values_in_unit: generate_values_for_unit(g2, new_g2, frequency)
     }
-    generate_perlin(state)
+    next(state)
   end
 
   # here we're inside a unit, so, just return the next computed value
-  defp generate_perlin(state = %{ values_in_unit: [ val | rest ] }) do
+  def next(state = %{ values_in_unit: [ val | rest ] }) do
     { val, %{ state | values_in_unit: rest } }
   end
 
+
+  
+  ############################################################
+
+  # For 1D curves, the gradient is just a value between -1 and 1.
+  
+  defp random_gradient() do
+    :rand.uniform() * 2 - 1
+  end
 
   
   defp generate_values_for_unit(g1, g2, frequency) do
@@ -81,7 +113,7 @@ defmodule StreamPerlin do
 
 
   
-  def perlin_value(offset, frequency, g1, g2) do
+  defp perlin_value(offset, frequency, g1, g2) do
     offset = ease(offset / frequency)
 
     # contributions of the two end vectors to a point between them

@@ -13,4 +13,20 @@ defmodule StreamPerlinTest do
         end)
     end
   end
+
+  test "we can call the generator manually" do
+    sp = StreamPerlin.initialize(100)  # with a long cycle, values should be close
+    { v1, sp } = StreamPerlin.next(sp)
+    { v2, sp } = StreamPerlin.next(sp)
+    { v3, sp } = StreamPerlin.next(sp)
+    { v4, _  } = StreamPerlin.next(sp)
+
+    assert v1 != v2
+    assert v2 != v3
+    assert v3 != v4
+
+    assert abs(v1-v2) < 2/50
+    assert abs(v2-v3) < 2/50
+    assert abs(v3-v4) < 2/50
+  end
 end
